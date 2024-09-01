@@ -41,13 +41,13 @@ Tango Text is a sleek and interactive web application that offers real-time lang
 3. **Set up environment variables:**
    Create a `.env` file in the root directory and add the following:
    ```ini
-   DATABASE_URL=sqlite:///./test.db
+   DATABASE_URL=postgresql://
    OPENAI_API_KEY=your_openai_api_key
    ```
 
 4. **Run the application:**
    ```bash
-   poetry run uvicorn app.main:app --reload
+   uvicorn app.main:app --reload
    ```
 
    The application will be accessible at `http://localhost:8000`.
