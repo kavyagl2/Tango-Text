@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Tango Text</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    body, html {
+      height: 100%;
+      margin: 0;
+      background-color: #f8f9fa;
+      display: flex;
+      flex-direction: column;
+    }
+    .content {
+      flex: 1;
+      padding: 20px;
+    }
+    .navbar {
+      background-color: #343a40;
+    }
+    .btn-primary {
+      background-color: #007bff;
+      border-color: #007bff;
+    }
+    .form-label {
+      color: #343a40;
+    }
+    .footer {
+      color: #343a40;
+      text-align: center;
+      padding: 10px 0;
+      width: 100%;
+    }
+    .form-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 20px;
+    }
+    .form-box {
+      width: 100%;
+      max-width: 600px;
+      margin: 10px 0;
+    }
+    .btn-container {
+      text-align: center;
+      margin-top: 20px;
+    }
+    .loading-ribbon {
+      display: none;
+      background-color: #007bff;
+      color: white;
+      text-align: center;
+      padding: 10px;
+      border-radius: .375rem;
+      width: 100%;
+      margin-top: 10px;
+    }
+    .result-card {
+      background: #fff;
+      border: 1px solid #dee2e6;
+      border-radius: .375rem;
+      padding: 20px;
+      box-shadow: 0 0 .5rem rgba(0, 0, 0, 0.2);
+    }
+    .translation-item {
+      margin-bottom: 10px;
+    }
+    .translation-item h5 {
+      margin-bottom: 5px;
+    }
+  </style>
+</head>
+<body>
+  <nav class="navbar navbar-expand-lg navbar-dark">
+    <div class="container">
+      <a class="navbar-brand mx-auto" href="#">Tango Text - Twirl Through Languages with Ease!</a>
+    </div>
+  </nav>
+
+  <div class="content">
+    <div class="container form-container">
+      <div class="form-box">
+        <label for="text" class="form-label">Text to Translate</label>
+        <textarea id="text" class="form-control" rows="5"></textarea>
+      </div>
+      <div class="form-box">
+        <label for="languages" class="form-label">Languages</label>
+        <input id="languages" class="form-control" type="text" placeholder="e.g., english, german, russian">
+        <small class="form-text text-muted">Write the languages you want to translate your text to, separated by commas.</small>
+      </div>
+      <div class="btn-container">
+        <button class="btn btn-primary" onclick="translateText()">Translate</button>
+      </div>
+      <div class="loading-ribbon" id="loadingRibbon">Translating...</div>
+      <div class="form-box" id="translation-result" style="display:none;">
+        <h3>Translation Result</h3>
+        <div id="result-content" class="result-card"></div>
+      </div>
+      <div class="form-box">
+        <label for="searchTaskId" class="form-label">Search Translation by Task ID</label>
+        <input id="searchTaskId" class="form-control" type="text" placeholder="Enter task ID">
+      </div>
+      <div class="btn-container">
+        <button class="btn btn-primary" onclick="searchTranslation()">Search</button>
+      </div>
+      <div class="form-box" id="searchResultContainer" style="display:none;">
+        <h3>Search Results</h3>
+        <div id="searchResults" class="result-card"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">
+    &copy; 2024 Translator Service
+  </div>
+
+  <script>
+    function showLoader(show) {
+      const loader = document.getElementById('loadingRibbon');
+      loader.style.display = show ? 'block' : 'none';
+    }
+
+    async function translateText() {
+      var text_for_translation = document.getElementById('text').value;
+      var languages_chosen = document.getElementById('languages').value.split(',').map(lang => lang.trim());
+      var payload = {
+        text: text_for_translation,
+        languages: languages_chosen
+      };
+
+      try {
+        showLoader(true);  // Show loader
+        const response = await fetch('http://localhost:8000/translate', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(payload)
+        });
+
+        if (!response.ok) {
+          throw new Error(`HTTP error! Status: ${response.status}`);
+        }
+
+        const result = await response.json();
+        alert('Translation request submitted. ID: ' + result.task_id);
+        checkTranslationStatus(result.task_id);
+      } catch (error) {
+        console.error('Error:', error);
+        alert('Failed to submit translation request.');
+      } finally {
+        // Loader will be hidden once result is received
+      }
+    }
+
+    function checkTranslationStatus(task_id) {
+      const intervalId = setInterval(async () => {
+        try {
+          const response = await fetch(`http://localhost:8000/translate/${task_id}`);
+          const result = await response.json();
+
+          if (result.status === "completed") {
+            clearInterval(intervalId);
+            displayTranslationResult(result.translations);
+            showLoader(false);  // Hide loader
+          }
+        } catch (error) {
+          console.error('Error fetching translation status:', error);
+        }
+      }, 3000); // Poll every 3 seconds
+    }
+
+    function displayTranslationResult(translations) {
+      const resultDiv = document.getElementById('translation-result');
+      const resultContent = document.getElementById('result-content');
+      resultContent.innerHTML = '';
+
+      Object.entries(translations).forEach(([language, translation]) => {
+        const item = document.createElement('div');
+        item.className = 'translation-item';
+        item.innerHTML = `<h5>${language}</h5><p>${translation}</p>`;
+        resultContent.appendChild(item);
+      });
+
+      resultDiv.style.display = 'block';
+    }
+
+    async function searchTranslation() {
+      var task_id = document.getElementById('searchTaskId').value;
+
+      if (!task_id) {
+        alert('Please enter a task ID to search.');
+        return;
+      }
+
+      try {
+        showLoader(true);  // Show loader
+        const response = await fetch(`http://localhost:8000/search?task_id=${task_id}`, {
+          method: 'GET'
+        });
+
+        if (!response.ok) {
+          throw new Error(`HTTP error! Status: ${response.status}`);
+        }
+
+        const result = await response.json();
+        displaySearchResult(result);
+      } catch (error) {
+        console.error('Error fetching translation data:', error);
+        alert('Failed to fetch translation data.');
+      } finally {
+        showLoader(false);  // Hide loader
+      }
+    }
+
+    function displaySearchResult(result) {
+      const searchResultDiv = document.getElementById('searchResultContainer');
+      const searchResultsDiv = document.getElementById('searchResults');
+      searchResultsDiv.innerHTML = '';
+
+      if (result.status === 'completed') {
+        Object.entries(result.translations).forEach(([language, translation]) => {
+          const item = document.createElement('div');
+          item.className = 'translation-item';
+          item.innerHTML = `<h5>${language}</h5><p>${translation}</p>`;
+          searchResultsDiv.appendChild(item);
+        });
+        searchResultDiv.style.display = 'block';
+      } else {
+        searchResultsDiv.innerHTML = '<p>No results found or task is still in progress.</p>';
+        searchResultDiv.style.display = 'block';
+      }
+    }
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
