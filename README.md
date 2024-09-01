@@ -29,7 +29,7 @@ Tango Text is a sleek and interactive web application that offers real-time lang
 
 1. **Clone the repository:**
    ```bash
-   git clone https://github.com/yourusername/tango-text.git
+   git clone https://github.com/kavyagl2/Tango-Text.git
    cd tango-text
    ```
 
